@@ -59,6 +59,7 @@ export interface CopilotHealth {
   status: CopilotHealthStatus;
   message: string;
   checkedAt: string;
+  authMode?: "github-app" | "user-token";
 }
 
 export interface ApprovalRequest {

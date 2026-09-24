@@ -9,7 +9,7 @@ import {
 } from "@github/copilot-sdk";
 
 import type { CommanderStreamEvent, CopilotHealth } from "../../shared/types.js";
-import type { AppConfig } from "../config.js";
+import type { AppConfig, CopilotAuthConfig } from "../config.js";
 import type { IncidentService } from "../domain/incident-service.js";
 import type { ApprovalBroker } from "./approval-broker.js";
 import { mintCopilotInstallationToken } from "./github-app-auth.js";
@@ -26,7 +26,7 @@ export class CopilotUnavailableError extends Error {
 
 interface ManagedClient {
   client: CopilotClient;
-  tokenExpiresAt: Date;
+  tokenExpiresAt: Date | undefined;
 }
 
 interface ManagedSession {
@@ -54,7 +54,7 @@ export class CopilotManager {
   }
 
   async warmup(): Promise<void> {
-    if (!this.config.githubApp || this.config.githubAppConfigurationError) {
+    if (!this.config.copilotAuth || this.config.copilotAuthConfigurationError) {
       return;
     }
     try {
@@ -234,30 +234,33 @@ export class CopilotManager {
   }
 
   private async ensureClient(): Promise<void> {
-    if (this.config.githubAppConfigurationError) {
-      this.setHealth("error", this.config.githubAppConfigurationError);
-      throw new CopilotUnavailableError(this.config.githubAppConfigurationError);
+    if (this.config.copilotAuthConfigurationError) {
+      this.setHealth("error", this.config.copilotAuthConfigurationError);
+      throw new CopilotUnavailableError(this.config.copilotAuthConfigurationError);
     }
-    if (!this.config.githubApp) {
+    if (!this.config.copilotAuth) {
       const message =
-        "Copilot is not configured. Add the GitHub App values from .env.example and restart.";
+        "Copilot is not configured. Select an authentication mode in .env and add its required values.";
       this.setHealth("unconfigured", message);
       throw new CopilotUnavailableError(message);
     }
 
     if (
       this.managedClient &&
-      this.managedClient.tokenExpiresAt.getTime() - Date.now() > TOKEN_REFRESH_BUFFER_MS
+      (!this.managedClient.tokenExpiresAt ||
+        this.managedClient.tokenExpiresAt.getTime() - Date.now() > TOKEN_REFRESH_BUFFER_MS)
     ) {
       return;
     }
 
     try {
       await this.rotateClient();
-      this.setHealth(
-        "healthy",
-        `GitHub App installation authentication is healthy. Runtime token expires at ${this.managedClient!.tokenExpiresAt.toISOString()}.`,
-      );
+      const auth = this.config.copilotAuth;
+      const message =
+        auth.mode === "github-app"
+          ? `GitHub App installation authentication is healthy. Runtime token expires at ${this.managedClient!.tokenExpiresAt!.toISOString()}.`
+          : "GitHub user-token authentication is healthy.";
+      this.setHealth("healthy", message);
     } catch (error) {
       const message = `Copilot authentication/runtime error: ${errorMessage(error)}`;
       this.setHealth("error", message);
@@ -272,18 +275,11 @@ export class CopilotManager {
       this.managedClient = undefined;
     }
 
-    const installationToken = await mintCopilotInstallationToken(this.config.githubApp!);
     fs.mkdirSync(this.config.copilotHomePath, { recursive: true });
-    const runtimeEnvironment = Object.fromEntries(
-      Object.entries(process.env).filter((entry): entry is [string, string] => Boolean(entry[1])),
-    );
-    delete runtimeEnvironment.GH_TOKEN;
-    delete runtimeEnvironment.GITHUB_TOKEN;
-    delete runtimeEnvironment.GITHUB_COPILOT_API_TOKEN;
-    delete runtimeEnvironment.COPILOT_API_URL;
-    runtimeEnvironment.COPILOT_GITHUB_TOKEN = installationToken.token;
-
-    const client = new CopilotClient({
+    const auth = this.config.copilotAuth!;
+    const runtimeEnvironment = createRuntimeEnvironment();
+    let tokenExpiresAt: Date | undefined;
+    const commonOptions = {
       clientInfo: {
         applicationName: "copilot-incident-command-center",
         applicationVersion: "1.0.0",
@@ -291,15 +287,47 @@ export class CopilotManager {
       mode: "empty",
       baseDirectory: this.config.copilotHomePath,
       useLoggedInUser: false,
-      connection: RuntimeConnection.forStdio({ env: runtimeEnvironment }),
+      connection: RuntimeConnection.forStdio(),
       logLevel: "error",
-    });
-    await client.start();
-    await client.ping("incident-command-center-health-check");
-    this.managedClient = {
-      client,
-      tokenExpiresAt: installationToken.expiresAt,
-    };
+    } as const;
+    let client: CopilotClient;
+
+    if (auth.mode === "github-app") {
+      const installationToken = await mintCopilotInstallationToken(auth);
+      runtimeEnvironment.COPILOT_GITHUB_TOKEN = installationToken.token;
+      tokenExpiresAt = installationToken.expiresAt;
+      client = new CopilotClient({
+        ...commonOptions,
+        env: runtimeEnvironment,
+      });
+    } else {
+      client = new CopilotClient({
+        ...commonOptions,
+        env: runtimeEnvironment,
+        gitHubToken: auth.token,
+      });
+    }
+
+    try {
+      await client.start();
+      const authStatus = await client.getAuthStatus();
+      if (!authStatus.isAuthenticated) {
+        throw new Error(authenticationFailureMessage(auth.mode, authStatus.statusMessage));
+      }
+      const models = await client.listModels();
+      if (!models.some((model) => model.id === this.config.copilotModel)) {
+        throw new Error(
+          `Configured model "${this.config.copilotModel}" is not available for this authentication context.`,
+        );
+      }
+      this.managedClient = {
+        client,
+        tokenExpiresAt,
+      };
+    } catch (error) {
+      await client.stop().catch(() => undefined);
+      throw error;
+    }
   }
 
   private async disposeSessions(): Promise<void> {
@@ -318,6 +346,7 @@ export class CopilotManager {
       status,
       message,
       checkedAt: new Date().toISOString(),
+      authMode: this.config.copilotAuth?.mode,
     };
   }
 }
@@ -330,25 +359,62 @@ When the user explicitly asks you to take response actions, use the write tools 
 Do not discuss source code, the local filesystem, or unavailable systems.`;
 
 function initialHealth(config: AppConfig): CopilotHealth {
-  if (config.githubAppConfigurationError) {
+  if (config.copilotAuthConfigurationError) {
     return {
       status: "error",
-      message: config.githubAppConfigurationError,
+      message: config.copilotAuthConfigurationError,
       checkedAt: new Date().toISOString(),
     };
   }
-  if (!config.githubApp) {
+  if (!config.copilotAuth) {
     return {
       status: "unconfigured",
-      message: "GitHub App authentication is not configured.",
+      message: "Copilot authentication is not configured.",
       checkedAt: new Date().toISOString(),
     };
   }
   return {
     status: "configured",
-    message: "GitHub App authentication is configured; runtime health has not been verified yet.",
+    message: `${authModeLabel(config.copilotAuth.mode)} authentication is configured; runtime health has not been verified yet.`,
     checkedAt: new Date().toISOString(),
+    authMode: config.copilotAuth.mode,
   };
+}
+
+function createRuntimeEnvironment(): Record<string, string> {
+  const runtimeEnvironment = Object.fromEntries(
+    Object.entries(process.env).filter((entry): entry is [string, string] => Boolean(entry[1])),
+  );
+  delete runtimeEnvironment.GH_TOKEN;
+  delete runtimeEnvironment.GITHUB_TOKEN;
+  delete runtimeEnvironment.GITHUB_COPILOT_API_TOKEN;
+  delete runtimeEnvironment.COPILOT_API_URL;
+  delete runtimeEnvironment.COPILOT_GITHUB_TOKEN;
+  delete runtimeEnvironment.COPILOT_USER_TOKEN;
+  return runtimeEnvironment;
+}
+
+function authenticationFailureMessage(
+  mode: CopilotAuthConfig["mode"],
+  statusMessage: string | undefined,
+): string {
+  const detail = statusMessage ? ` Runtime status: ${statusMessage}.` : "";
+  if (mode === "github-app") {
+    return (
+      "The GitHub App installation token was minted, but the Copilot runtime did not authenticate it. " +
+      "Confirm that the App ID and organization are enabled for Copilot SDK server-to-server authentication." +
+      detail
+    );
+  }
+  return (
+    "The GitHub user token was rejected by the Copilot runtime. Confirm it is a supported user token, " +
+    "the user has Copilot access, and a fine-grained PAT includes the Copilot Requests permission." +
+    detail
+  );
+}
+
+function authModeLabel(mode: "github-app" | "user-token"): string {
+  return mode === "github-app" ? "GitHub App" : "GitHub user-token";
 }
 
 function toolActivityLabel(toolName: string, phase: "started" | "completed" | "failed"): string {

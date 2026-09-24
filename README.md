@@ -6,7 +6,7 @@ into a React application, and requires an explicit browser approval before every
 state-changing tool call.
 
 The repository is safe to publish: it contains synthetic incident data, no credentials,
-and no user-authentication fallback.
+and no implicit fallback to a developer's stored authentication.
 
 ## What the demo shows
 
@@ -19,19 +19,20 @@ and no user-authentication fallback.
   `assign_incident`, `update_incident_status`, and `add_timeline_note`
 - Streaming assistant text and visible tool activity
 - SQLite persistence, correlated session/audit events, denial records, and immediate UI refresh
-- GitHub App server-to-server authentication with organization-attributed Copilot usage
+- Selectable GitHub App server-to-server or GitHub user-token authentication
+- Organization-attributed usage in GitHub App mode and user-attributed usage in user-token mode
 - A deterministic CLI and browser reset for repeatable customer demos
 
 ## Prerequisites
 
 - Node.js `20.19+` or `22.12+`
 - npm
-- A GitHub organization with Copilot and the policy that enables Copilot requests from
-  GitHub App installations
-- A GitHub App installed on the organization with **All repositories** access
+- For GitHub App mode: a GitHub organization enabled for Copilot requests from GitHub App
+  installations, plus a GitHub App installed with **All repositories** access
+- For user-token mode: a Copilot-enabled GitHub user and a supported user token
 
-The current Copilot permission check requires an **All repositories** installation. A
-selected-repositories installation is not sufficient, even though the installation
+The GitHub App permission check currently requires an **All repositories** installation.
+A selected-repositories installation is not sufficient, even though the installation
 token itself is scoped to the configured repository ID.
 
 ## Install
@@ -45,7 +46,21 @@ The application and tests work without live credentials. Without them, the dashb
 shows a truthful **unconfigured** authentication state and Copilot requests return an
 actionable error; the server never silently falls back to a logged-in developer account.
 
-## GitHub App setup
+## Authentication setup
+
+Set one of the following modes in `.env`:
+
+```dotenv
+COPILOT_AUTH_MODE=github-app
+```
+
+or:
+
+```dotenv
+COPILOT_AUTH_MODE=user-token
+```
+
+### GitHub App server-to-server mode
 
 Follow the current
 [server-to-server token documentation](https://docs.github.com/en/enterprise-cloud@latest/copilot/how-tos/copilot-sdk/auth/server-to-server-tokens).
@@ -63,6 +78,7 @@ Follow the current
 7. Configure `.env`:
 
 ```dotenv
+COPILOT_AUTH_MODE=github-app
 GITHUB_APP_ID=123456
 GITHUB_APP_INSTALLATION_ID=78901234
 GITHUB_REPOSITORY_ID=987654321
@@ -90,6 +106,26 @@ option, which is for user tokens.
 > If the “Copilot requests” permission is not visible while creating the App, verify that
 > the feature is available for the organization and account, then contact GitHub Support.
 > Do not substitute an unrelated permission or a developer’s personal token for this demo.
+
+### GitHub user-token mode
+
+Use this mode when server-to-server authentication is not enabled for the organization or
+GitHub App. Requests are attributed to the token owner, who must have GitHub Copilot access.
+
+1. Create a user-owned
+   [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)
+   with **Copilot Requests** permission. The token begins with `github_pat_`.
+2. Alternatively, use a supported OAuth user token beginning with `gho_` or `ghu_`.
+3. Configure `.env`:
+
+```dotenv
+COPILOT_AUTH_MODE=user-token
+COPILOT_USER_TOKEN=github_pat_...
+COPILOT_MODEL=gpt-5
+```
+
+Classic personal access tokens beginning with `ghp_` are not supported. The token is passed
+through the SDK's explicit `gitHubToken` option with logged-in-user fallback disabled.
 
 ## Run locally
 
@@ -136,17 +172,21 @@ and reset API confirmation.
 ## Troubleshooting authentication
 
 The header badge and `GET /api/health/copilot` expose only a non-sensitive status:
-`unconfigured`, `configured`, `healthy`, or `error`.
+`unconfigured`, `configured`, `healthy`, or `error`, plus the selected authentication mode.
+Startup health checks verify runtime authentication and model availability with
+`getAuthStatus()` and `listModels()`; a successful runtime ping alone is not considered healthy.
 
-| Symptom                               | What to check                                                                                                                             |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `401 Unauthorized`                    | The organization supports Copilot requests from GitHub App installations and the App/installation IDs are correct.                        |
-| `403 ... user information`            | The installation token is supplied as `COPILOT_GITHUB_TOKEN`, not the SDK user-token option.                                              |
-| `403 Forbidden` while minting a token | The App has `Copilot requests: Read and write`; the request contains the configured `repository_ids` value and `copilot_requests: write`. |
-| `403 Forbidden` from the Copilot API  | The App installation uses **All repositories** access; reinstall if needed, then mint a new token.                                        |
-| Requested model unavailable           | The organization policy allows `COPILOT_MODEL`, and the bundled Copilot runtime supports it.                                              |
-| Wrong account is billed               | The GitHub App installation belongs to the intended organization, not a user account or another organization.                             |
-| Invalid private key                   | Preserve the complete PEM header/footer and quote escaped newlines in `.env`.                                                             |
+| Symptom                                                                              | What to check                                                                                                                                                    |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `401 Unauthorized`                                                                   | The organization supports Copilot requests from GitHub App installations and the App/installation IDs are correct.                                               |
+| `403 ... user information`                                                           | The installation token is supplied as `COPILOT_GITHUB_TOKEN`, not the SDK user-token option.                                                                     |
+| `403 Forbidden` while minting a token                                                | The App has `Copilot requests: Read and write`; the request contains the configured `repository_ids` value and `copilot_requests: write`.                        |
+| `403 Forbidden` from the Copilot API                                                 | The App installation uses **All repositories** access; reinstall if needed, then mint a new token.                                                               |
+| `No GitHub OAuth token or Copilot HMAC key provided` after a `ghs_` token was minted | The runtime did not accept the installation identity. Confirm that both the App ID and organization are enabled for Copilot SDK server-to-server authentication. |
+| User-token mode is not authenticated                                                 | Use a `github_pat_` token with **Copilot Requests** permission, or a supported `gho_`/`ghu_` user token; confirm the user has Copilot access.                    |
+| Requested model unavailable                                                          | The organization policy allows `COPILOT_MODEL`, and the bundled Copilot runtime supports it.                                                                     |
+| Wrong account is billed                                                              | The GitHub App installation belongs to the intended organization, not a user account or another organization.                                                    |
+| Invalid private key                                                                  | Preserve the complete PEM header/footer and quote escaped newlines in `.env`.                                                                                    |
 
 ## Architecture
 
@@ -154,8 +194,8 @@ The header badge and `GET /api/health/copilot` expose only a non-sensitive statu
 - `src/server/app.ts` — Express API and production static serving
 - `src/server/domain` — incident service and canonical seed data
 - `src/server/db` — SQLite schema, migration, and deterministic reset
-- `src/server/copilot` — GitHub App auth, managed SDK runtime, tools, permissions,
-  approval broker, and event translation
+- `src/server/copilot` — selectable auth strategies, managed SDK runtime, tools,
+  permissions, approval broker, and event translation
 - `src/shared` — end-to-end TypeScript API/domain contracts
 
 The browser never receives GitHub credentials and never accesses SQLite. Copilot tools

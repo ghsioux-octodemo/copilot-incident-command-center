@@ -364,7 +364,7 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
           placeholder={
             health?.status === "healthy"
               ? "Ask about this incident or request an action…"
-              : "Configure GitHub App authentication to enable Copilot"
+              : "Configure Copilot authentication to enable Incident Commander"
           }
           disabled={!canSend}
           onChange={(event) => setPrompt(event.target.value)}

@@ -160,7 +160,9 @@ export function App() {
               <strong>Copilot {health?.status ?? "checking"}</strong>
               <small>
                 {health?.status === "healthy"
-                  ? "GitHub App · org attributed"
+                  ? health.authMode === "user-token"
+                    ? "User token · user attributed"
+                    : "GitHub App · org attributed"
                   : (health?.message ?? "Checking authentication")}
               </small>
             </div>
