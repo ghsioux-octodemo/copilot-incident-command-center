@@ -1274,3 +1274,415 @@ p {
     border-right: 0;
   }
 }
+
+/* Light enterprise presentation for customer-facing demos. */
+:root {
+  color: #172033;
+  background: #eef2f7;
+  --panel: #ffffff;
+  --panel-2: #f7f9fc;
+  --border: #dce4ee;
+  --muted: #5f6f85;
+  --subtle: #8796a9;
+  --blue: #376fd8;
+  --violet: #7452c8;
+  --green: #168a66;
+  --red: #d83b4c;
+  --amber: #bf7414;
+}
+
+.app-shell {
+  background: radial-gradient(circle at 74% -20%, rgb(98 87 207 / 10%), transparent 32%), #eef2f7;
+}
+
+.topbar {
+  border-color: #d7e0eb;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 1px 8px rgb(26 38 55 / 6%);
+}
+
+.brand-mark {
+  box-shadow: 0 7px 20px rgb(70 86 196 / 22%);
+}
+
+.brand span {
+  color: #718197;
+}
+
+.brand strong {
+  color: #172033;
+}
+
+.health-badge {
+  border-color: #d7e0eb;
+  background: #f8fafc;
+}
+
+.health-badge strong {
+  color: #28364a;
+}
+
+.reset-button {
+  border-color: #cfdae7;
+  color: #415169;
+  background: #ffffff;
+}
+
+.reset-button:hover {
+  border-color: #afbed0;
+  background: #f6f8fb;
+}
+
+.incident-rail {
+  border-color: #d9e2ec;
+  background: #f8fafc;
+}
+
+.rail-heading {
+  border-color: #d9e2ec;
+}
+
+.rail-heading h1 {
+  color: #172033;
+}
+
+.active-count {
+  border-color: #f0bec4;
+  color: #b52f3f;
+  background: #fff1f3;
+}
+
+.incident-card {
+  color: #25344a;
+}
+
+.incident-card:hover {
+  background: #f0f4f9;
+}
+
+.incident-card.selected {
+  border-color: #b8cdf5;
+  background: #ffffff;
+  box-shadow:
+    inset 3px 0 #4779d9,
+    0 5px 18px rgb(32 56 85 / 8%);
+}
+
+.incident-card p {
+  color: #69798f;
+}
+
+.incident-card-meta {
+  color: #8594a7;
+}
+
+.status-badge {
+  border-color: #d2dbe6;
+  color: #536278;
+  background: #f3f6f9;
+}
+
+.incident-id {
+  color: #65758b;
+  background: #edf1f6;
+}
+
+.incident-main {
+  background: #f2f5f9;
+}
+
+.detail-title-row h2 {
+  color: #172033;
+}
+
+.detail-title-row p {
+  color: #607087;
+}
+
+.facts-grid {
+  border-color: #d7e0ea;
+}
+
+.fact {
+  border-color: #dce4ed;
+  color: #718197;
+}
+
+.fact span {
+  color: #8a98aa;
+}
+
+.fact strong {
+  color: #27364b;
+}
+
+.impact-banner {
+  border-color: #efc3c8;
+  color: #c43647;
+  background: linear-gradient(90deg, #fff3f4, #fff9fa);
+}
+
+.impact-banner strong {
+  color: #7f2d37;
+}
+
+.content-card {
+  border-color: #d9e2ec;
+  background: #ffffff;
+  box-shadow: 0 8px 26px rgb(30 49 72 / 7%);
+}
+
+.section-heading {
+  border-color: #e0e7ef;
+  background: #fbfcfe;
+}
+
+.section-heading h3 {
+  color: #26354a;
+}
+
+.timeline-entry::before {
+  background: #dce4ee;
+}
+
+.timeline-marker {
+  border-color: #ffffff;
+}
+
+.timeline-content strong {
+  color: #27364a;
+}
+
+.timeline-content p {
+  color: #63738a;
+}
+
+.timeline-content span,
+.timeline-content time {
+  color: #8a98aa;
+}
+
+.service-health-row,
+.audit-row {
+  border-color: #e5ebf2;
+}
+
+.service-health-row strong,
+.service-metrics strong,
+.audit-row strong {
+  color: #2a394e;
+}
+
+.service-health-row span,
+.audit-row span {
+  color: #718096;
+}
+
+.service-dot.outage {
+  box-shadow: 0 0 0 4px rgb(216 59 76 / 9%);
+}
+
+.audit-icon {
+  color: #168a66;
+  background: #e9f7f2;
+}
+
+.audit-icon.denied,
+.audit-icon.error {
+  color: #a8610c;
+  background: #fff5e7;
+}
+
+.commander-panel {
+  border-color: #d7deeb;
+  background: linear-gradient(180deg, rgb(116 82 200 / 7%), transparent 22%), #f8f9fc;
+  box-shadow: -8px 0 24px rgb(35 47 71 / 7%);
+}
+
+.commander-header {
+  border-color: #dce3ed;
+  background: rgb(255 255 255 / 78%);
+}
+
+.commander-avatar {
+  border-color: #d4c6f2;
+  color: #6746b7;
+  background: #f1ecfb;
+}
+
+.commander-header h2 {
+  color: #222e43;
+}
+
+.commander-welcome h3 {
+  color: #26344a;
+}
+
+.commander-welcome > p {
+  color: #68788d;
+}
+
+.suggestion-card {
+  border-color: #ccd7e7;
+  color: #26354a;
+  background: #ffffff;
+  box-shadow: 0 5px 16px rgb(31 50 75 / 6%);
+}
+
+.suggestion-card.secondary {
+  border-color: #dce4ee;
+  background: #f8fafc;
+}
+
+.suggestion-card:not(:disabled):hover {
+  border-color: #9fb3d7;
+  background: #f9fbff;
+  box-shadow: 0 8px 20px rgb(38 58 88 / 9%);
+}
+
+.suggestion-card span {
+  color: #6c7b90;
+}
+
+.suggestion-card strong {
+  color: #26354a;
+}
+
+.chat-message {
+  border-color: #dce4ee;
+  color: #34435a;
+  background: #ffffff;
+  box-shadow: 0 3px 12px rgb(35 52 76 / 5%);
+}
+
+.chat-message.user {
+  border-color: #c2d4f3;
+  background: #edf4ff;
+}
+
+.chat-message.error {
+  border-color: #efb9c0;
+  background: #fff5f6;
+}
+
+.message-role {
+  color: #718198;
+}
+
+.chat-message strong {
+  color: #1f2c40;
+}
+
+.activity-stack {
+  border-color: #dce4ed;
+  background: #f7f9fc;
+}
+
+.activity-row {
+  color: #66768c;
+}
+
+.activity-row code {
+  color: #8290a2;
+  background: #edf1f6;
+}
+
+.approval-card {
+  border-color: #e3ba7c;
+  background: linear-gradient(150deg, #fff8ed, #ffffff);
+  box-shadow: 0 10px 26px rgb(83 58 26 / 10%);
+}
+
+.approval-title strong {
+  color: #65441c;
+}
+
+.approval-arguments {
+  border-color: #eadcc8;
+  background: #fffdf8;
+}
+
+.approval-arguments div {
+  border-color: #eee2d1;
+}
+
+.approval-arguments span {
+  color: #8b7354;
+}
+
+.approval-arguments strong {
+  color: #5e4a31;
+}
+
+.button {
+  border-color: #ccd7e4;
+  color: #34445a;
+  background: #f2f5f9;
+}
+
+.button.danger-ghost {
+  border-color: #ddc9aa;
+  color: #785b34;
+  background: #fffdf8;
+}
+
+.denial-state {
+  border-color: #ead3ad;
+  color: #805b27;
+  background: #fff8eb;
+}
+
+.commander-composer {
+  border-color: #dce4ed;
+  background: #ffffff;
+}
+
+.commander-composer textarea {
+  border-color: #cad6e4;
+  color: #2b3a50;
+  background: #f8fafc;
+}
+
+.commander-composer textarea:focus {
+  border-color: #809bd4;
+  box-shadow: 0 0 0 3px rgb(55 111 216 / 10%);
+}
+
+.commander-composer textarea:disabled {
+  color: #8996a7;
+  background: #f3f5f8;
+}
+
+.send-button:disabled {
+  color: #8996a7;
+  background: #e3e8ef;
+}
+
+.composer-footnote {
+  color: #8b98a9;
+}
+
+.confirmation-modal {
+  border-color: #d6e0ea;
+  background: #ffffff;
+  box-shadow: 0 28px 80px rgb(31 47 68 / 24%);
+}
+
+.confirmation-modal h2 {
+  color: #1f2d41;
+}
+
+.confirmation-modal p {
+  color: #65758a;
+}
+
+.toast-error {
+  border-color: #efb5bd;
+  color: #9c2d3b;
+  background: #fff2f4;
+}
+
+.empty-state strong,
+.page-state strong {
+  color: #26354a;
+}
