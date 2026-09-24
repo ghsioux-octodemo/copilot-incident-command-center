@@ -1686,3 +1686,419 @@ p {
 .page-state strong {
   color: #26354a;
 }
+
+/* Presentation-friendly type scale and spacing. */
+body {
+  min-width: 1280px;
+}
+
+.topbar {
+  height: 78px;
+  padding: 0 28px;
+}
+
+.brand {
+  gap: 14px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+}
+
+.brand span {
+  font-size: 13px;
+}
+
+.brand strong {
+  font-size: 17px;
+}
+
+.health-badge {
+  min-width: 246px;
+  padding: 9px 14px;
+}
+
+.health-badge strong {
+  font-size: 12px;
+}
+
+.health-badge small {
+  max-width: 210px;
+  font-size: 11px;
+}
+
+.reset-button {
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.workspace {
+  height: calc(100vh - 78px);
+  grid-template-columns: 330px minmax(650px, 1fr) 420px;
+}
+
+.rail-heading {
+  height: 92px;
+  padding: 0 22px;
+}
+
+.eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+.rail-heading h1 {
+  font-size: 23px;
+}
+
+.active-count {
+  padding: 6px 9px;
+  font-size: 11px;
+}
+
+.incident-list {
+  height: calc(100% - 92px);
+  padding: 12px;
+}
+
+.incident-card {
+  margin-bottom: 10px;
+  padding: 15px;
+}
+
+.incident-card > strong {
+  margin-bottom: 7px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.incident-card p {
+  margin-bottom: 13px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.incident-card-meta {
+  gap: 16px;
+  font-size: 10.5px;
+}
+
+.severity-badge,
+.status-badge,
+.incident-id {
+  min-height: 22px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+
+.incident-detail {
+  max-width: 1180px;
+  padding: 30px;
+}
+
+.detail-title-row h2 {
+  max-width: 760px;
+  margin-bottom: 10px;
+  font-size: 31px;
+  line-height: 1.2;
+}
+
+.detail-title-row p {
+  max-width: 760px;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.impact-number {
+  min-width: 165px;
+}
+
+.impact-number strong {
+  font-size: 30px;
+}
+
+.impact-number span {
+  font-size: 11px;
+}
+
+.facts-grid {
+  margin-top: 26px;
+  padding-top: 17px;
+}
+
+.fact {
+  gap: 10px;
+  padding: 3px 18px;
+}
+
+.fact span {
+  font-size: 10px;
+}
+
+.fact strong {
+  font-size: 12px;
+}
+
+.impact-banner {
+  gap: 13px;
+  margin-bottom: 18px;
+  padding: 15px 18px;
+}
+
+.impact-banner span {
+  font-size: 10px;
+}
+
+.impact-banner strong {
+  font-size: 13px;
+}
+
+.detail-columns {
+  gap: 18px;
+}
+
+.detail-side-stack {
+  gap: 18px;
+}
+
+.section-heading {
+  min-height: 54px;
+  padding: 0 17px;
+}
+
+.section-heading h3 {
+  font-size: 14px;
+}
+
+.section-heading > span {
+  font-size: 10.5px;
+}
+
+.timeline {
+  padding: 7px 20px 14px;
+}
+
+.timeline-entry {
+  grid-template-columns: 14px 1fr;
+  gap: 13px;
+  padding-top: 16px;
+}
+
+.timeline-content {
+  padding-bottom: 14px;
+}
+
+.timeline-content time {
+  margin-bottom: 4px;
+  font-size: 10px;
+}
+
+.timeline-content strong {
+  font-size: 12.5px;
+}
+
+.timeline-content p {
+  margin: 6px 0;
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+.timeline-content span {
+  font-size: 9.5px;
+}
+
+.health-list,
+.audit-list {
+  padding: 5px 16px 10px;
+}
+
+.service-health-row {
+  grid-template-columns: 9px 1fr auto;
+  gap: 11px;
+  padding: 13px 0;
+}
+
+.service-health-row strong {
+  font-size: 11.5px;
+}
+
+.service-health-row span {
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.service-metrics strong {
+  font-size: 11.5px;
+}
+
+.audit-list {
+  max-height: 220px;
+}
+
+.audit-row {
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.audit-icon {
+  width: 27px;
+  height: 27px;
+}
+
+.audit-row strong {
+  font-size: 11px;
+}
+
+.audit-row span {
+  font-size: 9.5px;
+}
+
+.commander-panel {
+  grid-template-rows: 78px 1fr auto;
+}
+
+.commander-header {
+  gap: 12px;
+  padding: 0 18px;
+}
+
+.commander-avatar {
+  width: 40px;
+  height: 40px;
+}
+
+.commander-header h2 {
+  font-size: 17px;
+}
+
+.commander-body {
+  padding: 18px 17px 10px;
+}
+
+.commander-welcome {
+  padding: 34px 8px;
+}
+
+.commander-welcome h3 {
+  margin: 12px 0 8px;
+  font-size: 17px;
+}
+
+.commander-welcome > p {
+  max-width: 320px;
+  margin-bottom: 24px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.suggestion-card {
+  margin-bottom: 11px;
+  padding: 14px 15px;
+}
+
+.suggestion-card:disabled {
+  opacity: 0.72;
+}
+
+.suggestion-card span {
+  gap: 5px;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.suggestion-card strong {
+  font-size: 13px;
+}
+
+.chat-message {
+  margin-bottom: 14px;
+  padding: 14px 15px;
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.message-role {
+  margin-bottom: 8px;
+  font-size: 10px;
+}
+
+.activity-stack {
+  padding: 12px 13px;
+}
+
+.activity-heading {
+  font-size: 9.5px;
+}
+
+.activity-row {
+  min-height: 28px;
+  font-size: 10.5px;
+}
+
+.activity-row code {
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 9px;
+}
+
+.approval-card {
+  padding: 15px;
+}
+
+.approval-title span {
+  font-size: 9.5px;
+}
+
+.approval-title strong {
+  font-size: 12px;
+}
+
+.approval-arguments span,
+.approval-arguments strong,
+.approval-card > p,
+.denial-state {
+  font-size: 10.5px;
+}
+
+.commander-composer {
+  padding: 12px 16px 14px;
+}
+
+.commander-composer textarea {
+  min-height: 82px;
+  padding: 13px 46px 25px 14px;
+  font-size: 12.5px;
+}
+
+.send-button {
+  top: 23px;
+  right: 27px;
+  width: 32px;
+  height: 32px;
+}
+
+.composer-footnote {
+  bottom: 20px;
+  left: 30px;
+  font-size: 9px;
+}
+
+@media (max-width: 1500px) {
+  body {
+    min-width: 1180px;
+  }
+
+  .workspace {
+    grid-template-columns: 300px minmax(560px, 1fr) 380px;
+  }
+
+  .incident-detail {
+    padding: 24px;
+  }
+
+  .detail-title-row h2 {
+    font-size: 27px;
+  }
+}
