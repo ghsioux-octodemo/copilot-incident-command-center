@@ -2029,18 +2029,18 @@ body {
 }
 
 .activity-heading {
-  font-size: 9.5px;
+  font-size: 11px;
 }
 
 .activity-row {
   min-height: 28px;
-  font-size: 10.5px;
+  font-size: 12px;
 }
 
 .activity-row code {
   padding: 2px 5px;
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .approval-card {
