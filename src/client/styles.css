@@ -2102,3 +2102,111 @@ body {
     font-size: 27px;
   }
 }
+
+.detail-columns {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.detail-side-stack {
+  grid-template-columns: minmax(0, 1.35fr) minmax(340px, 0.65fr);
+  align-items: start;
+}
+
+.timeline {
+  padding: 9px 24px 18px;
+}
+
+.timeline-entry {
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 15px;
+  padding-top: 18px;
+}
+
+.timeline-entry::before {
+  top: 31px;
+  bottom: -18px;
+  left: 6px;
+}
+
+.timeline-marker {
+  width: 13px;
+  height: 13px;
+  margin-top: 2px;
+}
+
+.timeline-content {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  column-gap: 18px;
+  padding-bottom: 17px;
+}
+
+.timeline-content time {
+  grid-column: 1;
+  grid-row: 1 / 4;
+  margin: 0;
+  padding-top: 1px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.timeline-content strong,
+.timeline-content p,
+.timeline-content span {
+  grid-column: 2;
+}
+
+.timeline-content strong {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.timeline-content p {
+  margin: 7px 0 5px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.timeline-content span {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.detail-side-stack .section-heading h3 {
+  font-size: 15px;
+}
+
+.service-health-row {
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 15px 0;
+}
+
+.service-health-row strong,
+.service-metrics strong {
+  font-size: 13px;
+}
+
+.service-health-row span {
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.service-metrics {
+  gap: 4px;
+}
+
+.audit-row strong {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.audit-row span {
+  font-size: 10.5px;
+}
+
+@media (max-width: 1500px) {
+  .detail-side-stack {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
