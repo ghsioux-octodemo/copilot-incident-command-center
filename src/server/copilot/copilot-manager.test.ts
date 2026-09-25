@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AppConfig, CopilotAuthConfig } from "../config.js";
 import type { IncidentService } from "../domain/incident-service.js";
@@ -8,7 +8,7 @@ const sdkMock = vi.hoisted(() => ({
   clientOptions: [] as Array<Record<string, unknown>>,
   authStatus: {
     isAuthenticated: true,
-    authType: "token",
+    authType: "env",
     statusMessage: "Authenticated",
   } as { isAuthenticated: boolean; authType?: string; statusMessage?: string },
   models: [{ id: "gpt-5" }],
@@ -48,11 +48,15 @@ vi.mock("./github-app-auth.js", () => ({
 import { CopilotManager } from "./copilot-manager.js";
 
 describe("CopilotManager authentication", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
     sdkMock.clientOptions.length = 0;
     sdkMock.authStatus = {
       isAuthenticated: true,
-      authType: "token",
+      authType: "env",
       statusMessage: "Authenticated",
     };
     sdkMock.models = [{ id: "gpt-5" }];
@@ -64,6 +68,7 @@ describe("CopilotManager authentication", () => {
   });
 
   it("passes a GitHub App installation token through the documented runtime environment", async () => {
+    vi.stubEnv("COPILOT_SDK_AUTH_TOKEN", "github_pat_ambient");
     const manager = createManager({
       mode: "github-app",
       appId: 123,
@@ -76,12 +81,13 @@ describe("CopilotManager authentication", () => {
 
     expect(mintMock).toHaveBeenCalledOnce();
     expect(sdkMock.clientOptions[0]).toMatchObject({
-      useLoggedInUser: false,
+      useLoggedInUser: true,
       env: expect.objectContaining({
         COPILOT_GITHUB_TOKEN: "ghs_test_installation_token",
       }),
     });
     expect(sdkMock.clientOptions[0]).not.toHaveProperty("gitHubToken");
+    expect(sdkMock.clientOptions[0].env).not.toHaveProperty("COPILOT_SDK_AUTH_TOKEN");
     expect(manager.getHealth()).toMatchObject({
       status: "healthy",
       message: expect.stringContaining("GitHub App installation authentication is healthy"),
@@ -89,6 +95,7 @@ describe("CopilotManager authentication", () => {
   });
 
   it("passes a user token through the SDK user-token option", async () => {
+    sdkMock.authStatus.authType = "token";
     const manager = createManager({
       mode: "user-token",
       token: "github_pat_test",
@@ -131,6 +138,26 @@ describe("CopilotManager authentication", () => {
         "Confirm that the App ID and organization are enabled for Copilot SDK server-to-server authentication",
       ),
     });
+    expect(sdkMock.stop).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a fallback identity when the installation token is not used", async () => {
+    sdkMock.authStatus.authType = "token";
+    const manager = createManager({
+      mode: "github-app",
+      appId: 123,
+      installationId: 456,
+      privateKey: "private-key",
+      repositoryId: 789,
+    });
+
+    await manager.warmup();
+
+    expect(manager.getHealth()).toMatchObject({
+      status: "error",
+      message: expect.stringContaining("fallback identity instead of the GitHub App"),
+    });
+    expect(sdkMock.listModels).not.toHaveBeenCalled();
     expect(sdkMock.stop).toHaveBeenCalledOnce();
   });
 

@@ -97,11 +97,15 @@ At runtime the backend:
 3. validates that GitHub returned a `ghs_` installation token;
 4. starts the locally managed Copilot runtime with that token in
    `COPILOT_GITHUB_TOKEN`;
-5. sets `useLoggedInUser: false`; and
+5. verifies that the runtime authenticated using the environment token, rejecting any
+   stored-user fallback; and
 6. stops and recreates the runtime with a refreshed token before expiry.
 
 The installation token is intentionally **not** passed through the SDK `gitHubToken`
-option, which is for user tokens.
+option, which is for user tokens. With the bundled runtime in SDK 1.0.14,
+`useLoggedInUser: false` also disables environment-token authentication; the App
+path therefore enables runtime auto-login but checks that the resulting authentication
+type is `env` before allowing any Copilot request.
 
 > If the “Copilot requests” permission is not visible while creating the App, verify that
 > the feature is available for the organization and account, then contact GitHub Support.
@@ -184,7 +188,7 @@ Startup health checks verify runtime authentication and model availability with
 | `403 Forbidden` from the Copilot API                                                 | The App installation uses **All repositories** access; reinstall if needed, then mint a new token.                                                               |
 | `No GitHub OAuth token or Copilot HMAC key provided` after a `ghs_` token was minted | The runtime did not accept the installation identity. Confirm that both the App ID and organization are enabled for Copilot SDK server-to-server authentication. |
 | User-token mode is not authenticated                                                 | Use a `github_pat_` token with **Copilot Requests** permission, or a supported `gho_`/`ghu_` user token; confirm the user has Copilot access.                    |
-| Requested model unavailable                                                          | The organization policy allows `COPILOT_MODEL`, and the bundled Copilot runtime supports it.                                                                     |
+| Requested model unavailable                                                          | Select a model returned by `listModels()` for the installation; model access depends on organization policy and runtime support.                                 |
 | Wrong account is billed                                                              | The GitHub App installation belongs to the intended organization, not a user account or another organization.                                                    |
 | Invalid private key                                                                  | Preserve the complete PEM header/footer and quote escaped newlines in `.env`.                                                                                    |
 

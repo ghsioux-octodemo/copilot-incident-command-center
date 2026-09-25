@@ -286,7 +286,6 @@ export class CopilotManager {
       },
       mode: "empty",
       baseDirectory: this.config.copilotHomePath,
-      useLoggedInUser: false,
       connection: RuntimeConnection.forStdio(),
       logLevel: "error",
     } as const;
@@ -299,12 +298,14 @@ export class CopilotManager {
       client = new CopilotClient({
         ...commonOptions,
         env: runtimeEnvironment,
+        useLoggedInUser: true,
       });
     } else {
       client = new CopilotClient({
         ...commonOptions,
         env: runtimeEnvironment,
         gitHubToken: auth.token,
+        useLoggedInUser: false,
       });
     }
 
@@ -313,6 +314,11 @@ export class CopilotManager {
       const authStatus = await client.getAuthStatus();
       if (!authStatus.isAuthenticated) {
         throw new Error(authenticationFailureMessage(auth.mode, authStatus.statusMessage));
+      }
+      if (auth.mode === "github-app" && authStatus.authType !== "env") {
+        throw new Error(
+          "The Copilot runtime authenticated with a fallback identity instead of the GitHub App installation token.",
+        );
       }
       const models = await client.listModels();
       if (!models.some((model) => model.id === this.config.copilotModel)) {
@@ -391,6 +397,7 @@ function createRuntimeEnvironment(): Record<string, string> {
   delete runtimeEnvironment.COPILOT_API_URL;
   delete runtimeEnvironment.COPILOT_GITHUB_TOKEN;
   delete runtimeEnvironment.COPILOT_USER_TOKEN;
+  delete runtimeEnvironment.COPILOT_SDK_AUTH_TOKEN;
   return runtimeEnvironment;
 }
 
