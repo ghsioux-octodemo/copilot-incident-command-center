@@ -52,28 +52,53 @@ interface CommanderPanelProps {
   onDataChanged: () => Promise<void>;
 }
 
+interface ConversationState {
+  sessionId?: string;
+  messages: Message[];
+  activities: Activity[];
+  pendingApprovals: ApprovalRequest[];
+  denialMessage?: string;
+  prompt: string;
+  isStreaming: boolean;
+}
+
+const EMPTY_STATE: ConversationState = {
+  messages: [],
+  activities: [],
+  pendingApprovals: [],
+  prompt: "",
+  isStreaming: false,
+};
+
 export function CommanderPanel({ incident, health, onDataChanged }: CommanderPanelProps) {
-  const [sessionId, setSessionId] = useState<string>();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [pendingApprovals, setPendingApprovals] = useState<ApprovalRequest[]>([]);
+  // State is kept per incident so switching incidents (even mid-stream) never loses it.
+  const [states, setStates] = useState<Record<string, ConversationState>>({});
+  const incidentId = incident.id;
+  const { sessionId, messages, activities, pendingApprovals, denialMessage, prompt, isStreaming } =
+    states[incidentId] ?? EMPTY_STATE;
   const pendingApproval = pendingApprovals[0];
   const [approvalBusy, setApprovalBusy] = useState(false);
-  const [denialMessage, setDenialMessage] = useState<string>();
-  const [prompt, setPrompt] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
   const [models, setModels] = useState<CopilotModel[]>([]);
   const [model, setModel] = useState(() => localStorage.getItem("commander-model") ?? "");
   const messageEndRef = useRef<HTMLDivElement>(null);
 
+  function patch(
+    id: string,
+    update: (state: ConversationState) => Partial<ConversationState>,
+  ): void {
+    setStates((all) => {
+      const state = all[id] ?? EMPTY_STATE;
+      return { ...all, [id]: { ...state, ...update(state) } };
+    });
+  }
+
+  function setPrompt(value: string): void {
+    patch(incidentId, () => ({ prompt: value }));
+  }
+
   useEffect(() => {
-    setSessionId(undefined);
-    setMessages([]);
-    setActivities([]);
-    setPendingApprovals([]);
-    setDenialMessage(undefined);
-    setPrompt("");
-  }, [incident.id]);
+    setApprovalBusy(false);
+  }, [incidentId]);
 
   useEffect(() => {
     if (health?.status !== "healthy") {
@@ -106,123 +131,111 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
       return;
     }
 
-    setPrompt("");
-    setDenialMessage(undefined);
-    setActivities([]);
-    setIsStreaming(true);
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: cleanPrompt,
-    };
+    const id = incidentId;
     const assistantMessageId = crypto.randomUUID();
-    setMessages((current) => [
-      ...current,
-      userMessage,
-      { id: assistantMessageId, role: "assistant", content: "" },
-    ]);
+    patch(id, (state) => ({
+      prompt: "",
+      denialMessage: undefined,
+      activities: [],
+      isStreaming: true,
+      messages: [
+        ...state.messages,
+        { id: crypto.randomUUID(), role: "user", content: cleanPrompt },
+        { id: assistantMessageId, role: "assistant", content: "" },
+      ],
+    }));
+
+    const updateMessage = (update: (message: Message) => Message): void =>
+      patch(id, (state) => ({
+        messages: state.messages.map((message) =>
+          message.id === assistantMessageId ? update(message) : message,
+        ),
+      }));
 
     try {
-      const activeSessionId = sessionId ?? (await createCommanderSession(incident.id));
+      const activeSessionId = sessionId ?? (await createCommanderSession(id));
       if (!sessionId) {
-        setSessionId(activeSessionId);
+        patch(id, () => ({ sessionId: activeSessionId }));
       }
       await sendCommanderMessage(
         activeSessionId,
-        incident.id,
+        id,
         cleanPrompt,
-        (event) => handleStreamEvent(event, assistantMessageId),
+        (event) => handleStreamEvent(event, id, updateMessage),
         model || undefined,
       );
     } catch (error) {
-      setMessages((current) =>
-        current.map((message) =>
-          message.id === assistantMessageId
-            ? {
-                ...message,
-                content: error instanceof Error ? error.message : String(error),
-                error: true,
-              }
-            : message,
-        ),
-      );
+      updateMessage((message) => ({
+        ...message,
+        content: error instanceof Error ? error.message : String(error),
+        error: true,
+      }));
     } finally {
-      setPendingApprovals([]);
-      setIsStreaming(false);
+      patch(id, () => ({ pendingApprovals: [], isStreaming: false }));
     }
   }
 
-  function handleStreamEvent(event: CommanderStreamEvent, assistantMessageId: string): void {
+  function handleStreamEvent(
+    event: CommanderStreamEvent,
+    id: string,
+    updateMessage: (update: (message: Message) => Message) => void,
+  ): void {
     switch (event.type) {
       case "assistant_delta":
-        setMessages((current) =>
-          current.map((message) =>
-            message.id === assistantMessageId
-              ? { ...message, content: message.content + event.delta }
-              : message,
-          ),
-        );
+        updateMessage((message) => ({ ...message, content: message.content + event.delta }));
         break;
       case "assistant_complete":
-        setMessages((current) =>
-          current.map((message) =>
-            message.id === assistantMessageId && !message.content
-              ? { ...message, content: event.content }
-              : message,
-          ),
+        updateMessage((message) =>
+          message.content ? message : { ...message, content: event.content },
         );
         break;
       case "tool_started":
-        setActivities((current) => [
-          ...current.filter((activity) => activity.id !== event.toolCallId),
-          {
-            id: event.toolCallId,
-            toolName: event.toolName,
-            label: event.label,
-            status: "running",
-          },
-        ]);
+        patch(id, (state) => ({
+          activities: [
+            ...state.activities.filter((activity) => activity.id !== event.toolCallId),
+            {
+              id: event.toolCallId,
+              toolName: event.toolName,
+              label: event.label,
+              status: "running",
+            },
+          ],
+        }));
         break;
       case "tool_completed":
-        setActivities((current) =>
-          current.map((activity) =>
+        patch(id, (state) => ({
+          activities: state.activities.map((activity) =>
             activity.id === event.toolCallId
-              ? {
-                  ...activity,
-                  label: event.label,
-                  status: event.success ? "success" : "failed",
-                }
+              ? { ...activity, label: event.label, status: event.success ? "success" : "failed" }
               : activity,
           ),
-        );
+        }));
         break;
       case "approval_required":
-        setPendingApprovals((current) =>
-          current.some((approval) => approval.id === event.approval.id)
-            ? current
-            : [...current, event.approval],
-        );
+        patch(id, (state) => ({
+          pendingApprovals: state.pendingApprovals.some(
+            (approval) => approval.id === event.approval.id,
+          )
+            ? state.pendingApprovals
+            : [...state.pendingApprovals, event.approval],
+        }));
         break;
       case "approval_resolved":
-        setPendingApprovals((current) =>
-          current.filter((approval) => approval.id !== event.approvalId),
-        );
+        patch(id, (state) => ({
+          pendingApprovals: state.pendingApprovals.filter(
+            (approval) => approval.id !== event.approvalId,
+          ),
+        }));
         break;
       case "data_changed":
         void onDataChanged();
         break;
       case "error":
-        setMessages((current) =>
-          current.map((message) =>
-            message.id === assistantMessageId
-              ? {
-                  ...message,
-                  content: message.content || event.message,
-                  error: true,
-                }
-              : message,
-          ),
-        );
+        updateMessage((message) => ({
+          ...message,
+          content: message.content || event.message,
+          error: true,
+        }));
         break;
     }
   }
@@ -231,17 +244,22 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
     if (!pendingApproval || !sessionId) {
       return;
     }
+    const id = incidentId;
+    const approval = pendingApproval;
     setApprovalBusy(true);
     try {
-      await resolveApproval(sessionId, pendingApproval, decision);
-      if (decision === "deny") {
-        setDenialMessage(`Denied: ${pendingApproval.summary}. No incident data was changed.`);
-      }
-      setPendingApprovals((current) =>
-        current.filter((approval) => approval.id !== pendingApproval.id),
-      );
+      await resolveApproval(sessionId, approval, decision);
+      patch(id, (state) => ({
+        denialMessage:
+          decision === "deny"
+            ? `Denied: ${approval.summary}. No incident data was changed.`
+            : state.denialMessage,
+        pendingApprovals: state.pendingApprovals.filter((item) => item.id !== approval.id),
+      }));
     } catch (error) {
-      setDenialMessage(error instanceof Error ? error.message : String(error));
+      patch(id, () => ({
+        denialMessage: error instanceof Error ? error.message : String(error),
+      }));
     } finally {
       setApprovalBusy(false);
     }

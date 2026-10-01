@@ -236,7 +236,7 @@ export function App() {
 
         {detail && (
           <CommanderPanel
-            key={`${detail.id}-${demoGeneration}`}
+            key={demoGeneration}
             health={health}
             incident={detail}
             onDataChanged={refreshSelected}
