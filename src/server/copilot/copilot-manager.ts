@@ -16,6 +16,7 @@ import { mintCopilotInstallationToken } from "./github-app-auth.js";
 import { createIncidentTools, createPermissionHandler, incidentToolNames } from "./tools.js";
 
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+const SEND_TIMEOUT_MS = 10 * 60 * 1000;
 
 export class CopilotUnavailableError extends Error {
   constructor(message: string) {
@@ -85,8 +86,9 @@ export class CopilotManager {
     const detachPublisher = this.approvalBroker.attachPublisher(browserSessionId, publish);
     publish({ type: "session", sessionId: browserSessionId });
 
+    let managedSession: ManagedSession | undefined;
     try {
-      const managedSession = await this.getOrCreateSession(browserSessionId, publish, model);
+      managedSession = await this.getOrCreateSession(browserSessionId, publish, model);
       const contextualPrompt = [
         `The user is viewing incident ${incidentId}.`,
         "Use the incident tools for authoritative context. Never invent incident state.",
@@ -94,13 +96,16 @@ export class CopilotManager {
       ].join("\n\n");
       const result = await managedSession.session.sendAndWait(
         { prompt: contextualPrompt },
-        2 * 60 * 1000,
+        SEND_TIMEOUT_MS,
       );
       if (result?.data.content) {
         publish({ type: "assistant_complete", content: result.data.content });
       }
       publish({ type: "done" });
     } catch (error) {
+      // Release any tool call still waiting on a user decision and stop the turn so the session stays usable.
+      this.approvalBroker.cancelSession(browserSessionId);
+      await managedSession?.session.abort().catch(() => undefined);
       publish({
         type: "error",
         message: errorMessage(error),

@@ -56,7 +56,8 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
   const [sessionId, setSessionId] = useState<string>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [pendingApproval, setPendingApproval] = useState<ApprovalRequest>();
+  const [pendingApprovals, setPendingApprovals] = useState<ApprovalRequest[]>([]);
+  const pendingApproval = pendingApprovals[0];
   const [approvalBusy, setApprovalBusy] = useState(false);
   const [denialMessage, setDenialMessage] = useState<string>();
   const [prompt, setPrompt] = useState("");
@@ -69,7 +70,7 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
     setSessionId(undefined);
     setMessages([]);
     setActivities([]);
-    setPendingApproval(undefined);
+    setPendingApprovals([]);
     setDenialMessage(undefined);
     setPrompt("");
   }, [incident.id]);
@@ -95,7 +96,7 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, activities, pendingApproval]);
+  }, [messages, activities, pendingApproval?.id]);
 
   const canSend = health?.status === "healthy" && !isStreaming;
 
@@ -146,6 +147,7 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
         ),
       );
     } finally {
+      setPendingApprovals([]);
       setIsStreaming(false);
     }
   }
@@ -195,10 +197,16 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
         );
         break;
       case "approval_required":
-        setPendingApproval(event.approval);
+        setPendingApprovals((current) =>
+          current.some((approval) => approval.id === event.approval.id)
+            ? current
+            : [...current, event.approval],
+        );
         break;
       case "approval_resolved":
-        setPendingApproval((current) => (current?.id === event.approvalId ? undefined : current));
+        setPendingApprovals((current) =>
+          current.filter((approval) => approval.id !== event.approvalId),
+        );
         break;
       case "data_changed":
         void onDataChanged();
@@ -229,7 +237,9 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
       if (decision === "deny") {
         setDenialMessage(`Denied: ${pendingApproval.summary}. No incident data was changed.`);
       }
-      setPendingApproval(undefined);
+      setPendingApprovals((current) =>
+        current.filter((approval) => approval.id !== pendingApproval.id),
+      );
     } catch (error) {
       setDenialMessage(error instanceof Error ? error.message : String(error));
     } finally {
@@ -355,7 +365,10 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
             <div className="approval-title">
               <ShieldCheck size={19} />
               <div>
-                <span>Approval required</span>
+                <span>
+                  Approval required
+                  {pendingApprovals.length > 1 && ` · 1 of ${pendingApprovals.length}`}
+                </span>
                 <strong>{pendingApproval.summary}</strong>
               </div>
             </div>
