@@ -4,7 +4,7 @@ import path from "node:path";
 import express, { type NextFunction, type Request, type Response } from "express";
 import { z } from "zod";
 
-import type { CommanderStreamEvent, CopilotHealth } from "../shared/types.js";
+import type { CommanderStreamEvent, CopilotHealth, CopilotModel } from "../shared/types.js";
 import { resetDatabase, type SqliteDatabase } from "./db/database.js";
 import { IncidentNotFoundError, type IncidentService } from "./domain/incident-service.js";
 
@@ -15,6 +15,7 @@ const sessionSchema = z.object({
 const messageSchema = z.object({
   incidentId: z.string().min(1),
   prompt: z.string().trim().min(1).max(4000),
+  model: z.string().trim().min(1).max(100).optional(),
 });
 
 const approvalSchema = z.object({
@@ -32,7 +33,9 @@ export interface CommanderService {
     incidentId: string,
     prompt: string,
     publish: (event: CommanderStreamEvent) => void,
+    model?: string,
   ): Promise<void>;
+  listModels(): Promise<{ models: CopilotModel[]; defaultModel: string }>;
   resolveApproval(sessionId: string, approvalId: string, approved: boolean): boolean;
   resetSessions(): Promise<void>;
 }
@@ -68,6 +71,14 @@ export function createApp({
     response.json(copilotManager.getHealth());
   });
 
+  app.get("/api/copilot/models", async (_request, response, next) => {
+    try {
+      response.json(await copilotManager.listModels());
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/copilot/sessions", (request, response) => {
     const { incidentId } = sessionSchema.parse(request.body);
     incidentService.getIncident(incidentId);
@@ -76,11 +87,15 @@ export function createApp({
 
   app.post("/api/copilot/sessions/:sessionId/messages", async (request, response, next) => {
     try {
-      const { incidentId, prompt } = messageSchema.parse(request.body);
+      const { incidentId, prompt, model } = messageSchema.parse(request.body);
       incidentService.getIncident(incidentId);
       configureEventStream(response);
-      await copilotManager.runMessage(request.params.sessionId, incidentId, prompt, (event) =>
-        writeStreamEvent(response, event),
+      await copilotManager.runMessage(
+        request.params.sessionId,
+        incidentId,
+        prompt,
+        (event) => writeStreamEvent(response, event),
+        model,
       );
       response.end();
     } catch (error) {

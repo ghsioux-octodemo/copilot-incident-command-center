@@ -8,7 +8,7 @@ import {
   type ToolExecutionStartEvent,
 } from "@github/copilot-sdk";
 
-import type { CommanderStreamEvent, CopilotHealth } from "../../shared/types.js";
+import type { CommanderStreamEvent, CopilotHealth, CopilotModel } from "../../shared/types.js";
 import type { AppConfig, CopilotAuthConfig } from "../config.js";
 import type { IncidentService } from "../domain/incident-service.js";
 import type { ApprovalBroker } from "./approval-broker.js";
@@ -31,6 +31,7 @@ interface ManagedClient {
 
 interface ManagedSession {
   session: CopilotSession;
+  model: string;
   unsubscribe: () => void;
   toolNamesByCallId: Map<string, string>;
 }
@@ -53,6 +54,15 @@ export class CopilotManager {
     return this.health;
   }
 
+  async listModels(): Promise<{ models: CopilotModel[]; defaultModel: string }> {
+    await this.ensureClient();
+    const models = await this.managedClient!.client.listModels();
+    return {
+      models: models.map((model) => ({ id: model.id, name: model.name || model.id })),
+      defaultModel: this.config.copilotModel,
+    };
+  }
+
   async warmup(): Promise<void> {
     if (!this.config.copilotAuth || this.config.copilotAuthConfigurationError) {
       return;
@@ -69,13 +79,14 @@ export class CopilotManager {
     incidentId: string,
     prompt: string,
     publish: (event: CommanderStreamEvent) => void,
+    model?: string,
   ): Promise<void> {
     this.incidentService.createCopilotSession(browserSessionId, incidentId);
     const detachPublisher = this.approvalBroker.attachPublisher(browserSessionId, publish);
     publish({ type: "session", sessionId: browserSessionId });
 
     try {
-      const managedSession = await this.getOrCreateSession(browserSessionId, publish);
+      const managedSession = await this.getOrCreateSession(browserSessionId, publish, model);
       const contextualPrompt = [
         `The user is viewing incident ${incidentId}.`,
         "Use the incident tools for authoritative context. Never invent incident state.",
@@ -139,10 +150,16 @@ export class CopilotManager {
   private async getOrCreateSession(
     browserSessionId: string,
     publish: (event: CommanderStreamEvent) => void,
+    requestedModel?: string,
   ): Promise<ManagedSession> {
     await this.ensureClient();
+    const model = await this.resolveModel(requestedModel);
     const existing = this.sessions.get(browserSessionId);
     if (existing) {
+      if (existing.model !== model) {
+        await existing.session.setModel(model);
+        existing.model = model;
+      }
       existing.unsubscribe();
       existing.unsubscribe = this.subscribe(existing, publish);
       return existing;
@@ -155,7 +172,7 @@ export class CopilotManager {
       publish,
     };
     const sessionConfig = {
-      model: this.config.copilotModel,
+      model,
       tools: createIncidentTools(context),
       availableTools: Array.from(incidentToolNames),
       customAgents: [
@@ -183,12 +200,24 @@ export class CopilotManager {
 
     const managed: ManagedSession = {
       session,
+      model,
       unsubscribe: () => undefined,
       toolNamesByCallId: new Map(),
     };
     managed.unsubscribe = this.subscribe(managed, publish);
     this.sessions.set(browserSessionId, managed);
     return managed;
+  }
+
+  private async resolveModel(requested?: string): Promise<string> {
+    if (!requested || requested === this.config.copilotModel) {
+      return this.config.copilotModel;
+    }
+    const models = await this.managedClient!.client.listModels();
+    if (!models.some((model) => model.id === requested)) {
+      throw new Error(`Model "${requested}" is not available for this authentication context.`);
+    }
+    return requested;
   }
 
   private subscribe(

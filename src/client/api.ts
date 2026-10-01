@@ -2,6 +2,7 @@ import type {
   ApprovalRequest,
   CommanderStreamEvent,
   CopilotHealth,
+  CopilotModel,
   Incident,
   IncidentDetail,
 } from "../shared/types";
@@ -37,6 +38,10 @@ export function getCopilotHealth(): Promise<CopilotHealth> {
   return jsonRequest<CopilotHealth>("/api/health/copilot");
 }
 
+export function listCopilotModels(): Promise<{ models: CopilotModel[]; defaultModel: string }> {
+  return jsonRequest("/api/copilot/models");
+}
+
 export async function createCommanderSession(incidentId: string): Promise<string> {
   const result = await jsonRequest<{ sessionId: string }>("/api/copilot/sessions", {
     method: "POST",
@@ -50,12 +55,13 @@ export async function sendCommanderMessage(
   incidentId: string,
   prompt: string,
   onEvent: (event: CommanderStreamEvent) => void,
+  model?: string,
   signal?: AbortSignal,
 ): Promise<void> {
   const response = await fetch(`/api/copilot/sessions/${encodeURIComponent(sessionId)}/messages`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ incidentId, prompt }),
+    body: JSON.stringify({ incidentId, prompt, model }),
     signal,
   });
   if (!response.ok || !response.body) {

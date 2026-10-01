@@ -765,10 +765,21 @@ p {
   font-size: 15px;
 }
 
+.model-select {
+  margin-left: auto;
+  max-width: 150px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+}
+
 .presence-dot {
   width: 8px;
   height: 8px;
-  margin-left: auto;
+  margin-left: 4px;
   border-radius: 50%;
   background: var(--subtle);
 }

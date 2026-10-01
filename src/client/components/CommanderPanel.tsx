@@ -18,9 +18,15 @@ import type {
   ApprovalRequest,
   CommanderStreamEvent,
   CopilotHealth,
+  CopilotModel,
   IncidentDetail,
 } from "../../shared/types";
-import { createCommanderSession, resolveApproval, sendCommanderMessage } from "../api";
+import {
+  createCommanderSession,
+  listCopilotModels,
+  resolveApproval,
+  sendCommanderMessage,
+} from "../api";
 
 const BRIEF_PROMPT = "Brief me on this incident and identify the most likely cause.";
 const ACTION_PROMPT =
@@ -55,6 +61,8 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
   const [denialMessage, setDenialMessage] = useState<string>();
   const [prompt, setPrompt] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [models, setModels] = useState<CopilotModel[]>([]);
+  const [model, setModel] = useState(() => localStorage.getItem("commander-model") ?? "");
   const messageEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,6 +73,25 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
     setDenialMessage(undefined);
     setPrompt("");
   }, [incident.id]);
+
+  useEffect(() => {
+    if (health?.status !== "healthy") {
+      return;
+    }
+    listCopilotModels()
+      .then(({ models: available, defaultModel }) => {
+        setModels(available);
+        setModel((current) =>
+          available.some((item) => item.id === current) ? current : defaultModel,
+        );
+      })
+      .catch(() => setModels([]));
+  }, [health?.status]);
+
+  function changeModel(value: string): void {
+    setModel(value);
+    localStorage.setItem("commander-model", value);
+  }
 
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -99,8 +126,12 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
       if (!sessionId) {
         setSessionId(activeSessionId);
       }
-      await sendCommanderMessage(activeSessionId, incident.id, cleanPrompt, (event) =>
-        handleStreamEvent(event, assistantMessageId),
+      await sendCommanderMessage(
+        activeSessionId,
+        incident.id,
+        cleanPrompt,
+        (event) => handleStreamEvent(event, assistantMessageId),
+        model || undefined,
       );
     } catch (error) {
       setMessages((current) =>
@@ -216,6 +247,21 @@ export function CommanderPanel({ incident, health, onDataChanged }: CommanderPan
           <div className="eyebrow">GitHub Copilot SDK</div>
           <h2>Incident Commander</h2>
         </div>
+        {models.length > 0 && (
+          <select
+            className="model-select"
+            aria-label="LLM model"
+            value={model}
+            disabled={isStreaming}
+            onChange={(event) => changeModel(event.target.value)}
+          >
+            {models.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
+          </select>
+        )}
         <span
           className={`presence-dot ${health?.status === "healthy" ? "online" : ""}`}
           title={health?.message}

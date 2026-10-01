@@ -62,6 +62,11 @@ export interface CopilotHealth {
   authMode?: "github-app" | "user-token";
 }
 
+export interface CopilotModel {
+  id: string;
+  name: string;
+}
+
 export interface ApprovalRequest {
   id: string;
   sessionId: string;

@@ -12,6 +12,7 @@ function createFakeCommander(overrides: Partial<CommanderService> = {}): Command
       message: "GitHub App authentication is not configured.",
       checkedAt: "2026-09-24T12:00:00.000Z",
     }),
+    listModels: async () => ({ models: [{ id: "gpt-5", name: "GPT-5" }], defaultModel: "gpt-5" }),
     runMessage: async (_sessionId, _incidentId, _prompt, publish) => {
       publish({ type: "assistant_delta", delta: "Incident brief" });
       publish({ type: "done" });
@@ -23,6 +24,16 @@ function createFakeCommander(overrides: Partial<CommanderService> = {}): Command
 }
 
 describe("HTTP API", () => {
+  it("lists selectable models", async () => {
+    const { database, incidentService } = createTestContext();
+    const app = createApp({ database, incidentService, copilotManager: createFakeCommander() });
+    const response = await request(app).get("/api/copilot/models");
+    expect(response.body).toEqual({
+      models: [{ id: "gpt-5", name: "GPT-5" }],
+      defaultModel: "gpt-5",
+    });
+  });
+
   it("returns incident details and a non-sensitive Copilot health state", async () => {
     const { database, incidentService } = createTestContext();
     const app = createApp({

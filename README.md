@@ -177,6 +177,8 @@ and reset API confirmation.
 
 The header badge and `GET /api/health/copilot` expose only a non-sensitive status:
 `unconfigured`, `configured`, `healthy`, or `error`, plus the selected authentication mode.
+`COPILOT_MODEL` is only the default; users can pick any model returned by `listModels()` from the dropdown in the Incident Commander header (choice stored in the browser).
+
 Startup health checks verify runtime authentication and model availability with
 `getAuthStatus()` and `listModels()`; a successful runtime ping alone is not considered healthy.
 
